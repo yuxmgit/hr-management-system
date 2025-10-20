@@ -107,6 +107,7 @@
   
   <script>
   import api from '../services/api'
+  import { Modal } from 'bootstrap'
   
   export default {
     name: 'AdminDashboard',
@@ -165,7 +166,7 @@
       showRejectModal(id) {
         this.currentRejectId = id
         this.rejectReason = ''
-        const modal = new bootstrap.Modal(document.getElementById('rejectModal'))
+        const modal = new Modal(document.getElementById('rejectModal'))
         modal.show()
       },
       async rejectRequest() {
@@ -174,11 +175,12 @@
             reason: this.rejectReason
           })
           await this.loadDashboardData()
-          bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide()
+          const modal = Modal.getInstance(document.getElementById('rejectModal'))
+          if (modal) modal.hide()
           this.$toast.success('申请已拒绝')
         } catch (error) {
           console.error('拒绝申请失败:', error)
-          this.$toast.error('拒绝申请失败')
+          this.$toast.error(`拒绝申请失败: ${error?.response?.data?.message || error.message || '未知错误'}`)
         }
       },
       formatLeaveType(type) {

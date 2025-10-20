@@ -1,7 +1,7 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import Employee, LeaveRequest, Attendance
@@ -36,7 +36,10 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
             employee = Employee.objects.get(user=user)
             serializer.save(employee=employee)
         except Employee.DoesNotExist:
-            raise serializers.ValidationError("Employee profile not found")
+            return Response({
+                'success': False,
+                'message': 'Employee profile not found'
+            }, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
@@ -88,7 +91,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             employee = Employee.objects.get(user=user)
             serializer.save(employee=employee)
         except Employee.DoesNotExist:
-            raise serializers.ValidationError("Employee profile not found")
+            return Response({
+                'success': False,
+                'message': 'Employee profile not found'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 # Authentication views
 from django.contrib.auth import authenticate, login, logout

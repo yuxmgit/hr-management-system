@@ -196,11 +196,12 @@
             await api.post('register/', this.currentEmployee)
             this.$toast.success('员工已添加')
           }
-          Modal.getInstance(document.getElementById('employeeModal')).hide()
+          const modal = Modal.getInstance(document.getElementById('employeeModal'))
+          if (modal) modal.hide()
           await this.loadEmployees()
         } catch (error) {
           console.error('保存员工信息失败:', error)
-          this.$toast.error('保存员工信息失败')
+          this.$toast.error(`保存员工信息失败: ${error?.response?.data?.message || error.message || '未知错误'}`)
         }
       },
       async deleteEmployee(id) {
@@ -211,7 +212,7 @@
             this.$toast.success('员工已删除')
           } catch (error) {
             console.error('删除员工失败:', error)
-            this.$toast.error('删除员工失败')
+            this.$toast.error(`删除员工失败: ${error?.response?.data?.message || error.message || '未知错误'}`)
           }
         }
       },
