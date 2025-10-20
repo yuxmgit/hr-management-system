@@ -34,11 +34,19 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         try:
             employee = Employee.objects.get(user=user)
-            serializer.save(employee=employee)
+            instance = serializer.save(employee=employee)
+            print(f"Attendance record saved: {instance.id}")  # Debug log
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Employee.DoesNotExist:
             return Response({
                 'success': False,
                 'message': 'Employee profile not found'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Error saving attendance: {e}")  # Debug log
+            return Response({
+                'success': False,
+                'message': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
@@ -89,11 +97,19 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         user = self.request.user
         try:
             employee = Employee.objects.get(user=user)
-            serializer.save(employee=employee)
+            instance = serializer.save(employee=employee)
+            print(f"Attendance record saved: {instance.id}")  # Debug log
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Employee.DoesNotExist:
             return Response({
                 'success': False,
                 'message': 'Employee profile not found'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Error saving attendance: {e}")  # Debug log
+            return Response({
+                'success': False,
+                'message': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
 # Authentication views
