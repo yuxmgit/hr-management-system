@@ -5,17 +5,18 @@
         <a class="navbar-brand" href="#">人力资源管理系统</a>
         <div class="navbar-nav ms-auto">
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" @click.prevent="toggleDropdown" ref="dropdownToggle">
               <i class="bi bi-person-circle"></i> {{ currentUser?.first_name }} {{ currentUser?.last_name }}
             </a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#" @click="logout">退出登录</a></li>
+            <ul class="dropdown-menu" :class="{ show: isDropdownOpen }" ref="dropdownMenu">
+              <li><a class="dropdown-item" href="#" @click.prevent="logout">退出登录</a></li>
             </ul>
           </li>
         </div>
       </div>
     </nav>
 
+    <!-- Rest of your template remains the same -->
     <div class="container-fluid">
       <div class="row">
         <nav v-if="$route.path !== '/login' && $route.path !== '/register'" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
@@ -55,20 +56,43 @@
 
 <script>
 import auth from './services/auth'
+import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 export default {
   name: 'App',
   data() {
     return {
-      currentUser: null
+      currentUser: null,
+      isDropdownOpen: false
     }
   },
   async created() {
     if (auth.isLoggedIn()) {
       await this.loadCurrentUser()
     }
+    
+    // Add global click listener to handle closing dropdown when clicking outside
+    document.addEventListener('click', this.handleOutsideClick)
+  },
+  beforeUnmount() {
+    // Clean up event listener
+    document.removeEventListener('click', this.handleOutsideClick)
   },
   methods: {
+    toggleDropdown() {
+      this.isDropdownOpen = !this.isDropdownOpen
+    },
+    handleOutsideClick(event) {
+      // Close dropdown if clicked outside
+      if (!this.$refs.dropdownToggle || !this.$refs.dropdownMenu) return
+      
+      const isClickInsideToggle = this.$refs.dropdownToggle.contains(event.target)
+      const isClickInsideMenu = this.$refs.dropdownMenu.contains(event.target)
+      
+      if (!isClickInsideToggle && !isClickInsideMenu) {
+        this.isDropdownOpen = false
+      }
+    },
     async loadCurrentUser() {
       try {
         const userData = await auth.getCurrentUser()
@@ -80,7 +104,13 @@ export default {
     },
     async logout() {
       try {
+        // Close dropdown first
+        this.isDropdownOpen = false
+        
+        // Perform logout
         await auth.logout()
+        
+        // Redirect to login page
         this.$router.push('/login')
       } catch (error) {
         console.error('退出登录错误:', error)

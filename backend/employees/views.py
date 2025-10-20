@@ -32,11 +32,15 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         user = self.request.user
+        print(f"Received data: {serializer.validated_data}")  # Debug log
         try:
             employee = Employee.objects.get(user=user)
             instance = serializer.save(employee=employee)
             print(f"Attendance record saved: {instance.id}")  # Debug log
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
         except Employee.DoesNotExist:
             return Response({
                 'success': False,
@@ -95,11 +99,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         user = self.request.user
+        print(f"Received data: {serializer.validated_data}")  # Debug log
         try:
             employee = Employee.objects.get(user=user)
             instance = serializer.save(employee=employee)
             print(f"Attendance record saved: {instance.id}")  # Debug log
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
         except Employee.DoesNotExist:
             return Response({
                 'success': False,

@@ -13,17 +13,15 @@ export default {
     }
   },
 
-  async logout() {
-    try {
-      await api.post('logout/')
-      localStorage.removeItem('user')
-      return { success: true }
-    } catch (error) {
-      localStorage.removeItem('user')
-      return { success: true }
-    }
+  logout() {
+    // Ensure this returns a promise
+    return new Promise((resolve) => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Any other cleanup
+      resolve();
+    });
   },
-
   async getCurrentUser() {
     try {
       const response = await api.get('current-user/')
