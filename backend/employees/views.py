@@ -2,10 +2,13 @@ from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import Employee, LeaveRequest, Attendance
 from .serializers import EmployeeSerializer, LeaveRequestSerializer, AttendanceSerializer
+from django.middleware.csrf import get_token
+from django.http import JsonResponse
 
 class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Employee.objects.all()
@@ -231,3 +234,363 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
+    
+# In employees/views.py
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_login_view(request):
+    """
+    Dedicated login endpoint for admin users
+    """
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    user = authenticate(username=username, password=password)
+    
+    # Check if user exists and is staff/admin
+    if user is not None and user.is_staff:
+        login(request, user)
+        return Response({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser
+            }
+        })
+    elif user is not None and not user.is_staff:
+        return Response({
+            'success': False,
+            'message': 'User is not authorized to access admin panel'
+        }, status=status.HTTP_403_FORBIDDEN)
+    else:
+        return Response({
+            'success': False,
+            'message': 'Invalid credentials'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def csrf_token_view(request):
+    """
+    Endpoint to get CSRF token
+    """
+    csrf_token = get_token(request)
+    return Response({'csrfToken': csrf_token})
+
+# 在文件末尾添加以下代码
+class AdminEmployeeListView(APIView):
+    """
+    管理员查看和创建员工列表
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+        
+        employees = Employee.objects.all()
+        serializer = EmployeeSerializer(employees, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+        
+        serializer = EmployeeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+class AdminEmployeeDetailView(APIView):
+    """
+    管理员查看、更新和删除特定员工
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return Employee.objects.get(pk=pk)
+        except Employee.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        employee = self.get_object(pk)
+        if not employee:
+            return Response({'error': 'Employee not found'}, status=404)
+            
+        serializer = EmployeeSerializer(employee)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        employee = self.get_object(pk)
+        if not employee:
+            return Response({'error': 'Employee not found'}, status=404)
+            
+        serializer = EmployeeSerializer(employee, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        employee = self.get_object(pk)
+        if not employee:
+            return Response({'error': 'Employee not found'}, status=404)
+            
+        employee.delete()
+        return Response(status=204)
+    
+class UserLeaveRequestListView(APIView):
+    """
+    用户查看和创建自己的请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        leave_requests = LeaveRequest.objects.filter(employee__user=request.user)
+        serializer = LeaveRequestSerializer(leave_requests, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        try:
+            employee = Employee.objects.get(user=request.user)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee profile not found'}, status=404)
+            
+        serializer = LeaveRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(employee=employee)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+class UserLeaveRequestDetailView(APIView):
+    """
+    用户查看、更新和删除自己的请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk, user):
+        try:
+            return LeaveRequest.objects.get(pk=pk, employee__user=user)
+        except LeaveRequest.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        leave_request = self.get_object(pk, request.user)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        serializer = LeaveRequestSerializer(leave_request)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        leave_request = self.get_object(pk, request.user)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 只能更新状态为pending的请假请求
+        if leave_request.status != 'pending':
+            return Response({'error': 'Cannot modify non-pending leave request'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    
+    def delete(self, request, pk):
+        leave_request = self.get_object(pk, request.user)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 只能删除状态为pending的请假请求
+        if leave_request.status != 'pending':
+            return Response({'error': 'Cannot delete non-pending leave request'}, status=400)
+            
+        leave_request.delete()
+        return Response(status=204)
+
+class AdminLeaveRequestListView(APIView):
+    """
+    管理员查看所有请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        leave_requests = LeaveRequest.objects.all()
+        serializer = LeaveRequestSerializer(leave_requests, many=True)
+        return Response(serializer.data)
+
+class AdminLeaveRequestDetailView(APIView):
+    """
+    管理员审批请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return LeaveRequest.objects.get(pk=pk)
+        except LeaveRequest.DoesNotExist:
+            return None
+    
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        leave_request = self.get_object(pk)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 只能审批状态为pending的请假请求
+        if leave_request.status != 'pending':
+            return Response({'error': 'Leave request already processed'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+class UserAttendanceListView(APIView):
+    """
+    用户查看和创建自己的考勤记录
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # 支持按日期筛选
+        date_param = request.GET.get('date', None)
+        
+        try:
+            employee = Employee.objects.get(user=request.user)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee profile not found'}, status=404)
+        
+        attendance_records = Attendance.objects.filter(employee=employee)
+        
+        if date_param:
+            try:
+                date_obj = datetime.strptime(date_param, '%Y-%m-%d').date()
+                attendance_records = attendance_records.filter(date=date_obj)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+        
+        serializer = AttendanceSerializer(attendance_records, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        try:
+            employee = Employee.objects.get(user=request.user)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee profile not found'}, status=404)
+            
+        serializer = AttendanceSerializer(data=request.data)
+        if serializer.is_valid():
+            # 检查是否已存在当天的考勤记录
+            existing_attendance = Attendance.objects.filter(
+                employee=employee,
+                date=serializer.validated_data.get('date')
+            ).first()
+            
+            if existing_attendance:
+                return Response({'error': 'Attendance record already exists for this date'}, status=400)
+                
+            serializer.save(employee=employee)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+class UserAttendanceDetailView(APIView):
+    """
+    用户查看和更新自己的考勤记录
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk, user):
+        try:
+            return Attendance.objects.get(pk=pk, employee__user=user)
+        except Attendance.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        attendance = self.get_object(pk, request.user)
+        if not attendance:
+            return Response({'error': 'Attendance record not found'}, status=404)
+            
+        serializer = AttendanceSerializer(attendance)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        attendance = self.get_object(pk, request.user)
+        if not attendance:
+            return Response({'error': 'Attendance record not found'}, status=404)
+            
+        serializer = AttendanceSerializer(attendance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+class AdminAttendanceListView(APIView):
+    """
+    管理员查看所有员工考勤记录
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        # 支持按日期筛选
+        date_param = request.GET.get('date', None)
+        
+        attendance_records = Attendance.objects.all()
+        
+        if date_param:
+            try:
+                date_obj = datetime.strptime(date_param, '%Y-%m-%d').date()
+                attendance_records = attendance_records.filter(date=date_obj)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+        
+        serializer = AttendanceSerializer(attendance_records, many=True)
+        return Response(serializer.data)
+
+class AdminAttendanceDetailView(APIView):
+    """
+    管理员查看特定考勤记录
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return Attendance.objects.get(pk=pk)
+        except Attendance.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        attendance = self.get_object(pk)
+        if not attendance:
+            return Response({'error': 'Attendance record not found'}, status=404)
+            
+        serializer = AttendanceSerializer(attendance)
+        return Response(serializer.data)

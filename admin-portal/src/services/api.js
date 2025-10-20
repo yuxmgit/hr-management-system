@@ -1,8 +1,7 @@
-// src/services/api.js
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/',
+  baseURL: 'http://localhost:8000/api/admin/',
   withCredentials: true,  // 重要：允许发送cookies
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
@@ -19,6 +18,12 @@ api.interceptors.request.use(
     
     if (csrfToken) {
       config.headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    // Always add Bearer token if available
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) {
+      config.headers['Authorization'] = `Bearer ${authToken}`;
     }
     
     return config;
@@ -40,4 +45,4 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default api

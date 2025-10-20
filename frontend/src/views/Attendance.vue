@@ -1,23 +1,28 @@
 <template>
-  <div>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h2">考勤记录</h1>
+  <div class="attendance-container">
+    <div class="header d-flex justify-content-between align-items-center mb-4">
+      <h1 class="page-title">考勤记录</h1>
       <div>
-        <button class="btn btn-primary me-2" @click="openManualModal">
+        <button class="btn btn-primary me-2 manual-btn" @click="openManualModal">
           <i class="bi bi-plus-circle"></i> 
           手动添加
         </button>
-        <button class="btn btn-primary" @click="checkIn" :disabled="checkedIn">
+        <button class="btn btn-primary checkin-btn" @click="checkIn" :disabled="checkedIn">
           <i class="bi bi-box-arrow-in-right"></i> 
           {{ checkedIn ? '已签到' : '签到' }}
         </button>
       </div>
     </div>
     
-    <div class="card">
-      <div class="card-body">
-        <table class="table table-striped">
-          <thead>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <div v-if="loading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+          </div>
+        </div>
+        <table v-else class="table table-hover table-bordered">
+          <thead class="table-light">
             <tr>
               <th>日期</th>
               <th>签到时间</th>
@@ -35,7 +40,7 @@
               </td>
             </tr>
             <tr v-if="attendanceRecords.length === 0">
-              <td colspan="4" class="text-center">暂无考勤记录</td>
+              <td colspan="4" class="text-center text-muted">暂无考勤记录</td>
             </tr>
           </tbody>
         </table>
@@ -94,6 +99,7 @@ export default {
     return {
       attendanceRecords: [],
       checkedIn: false,
+      loading: true,
       manualRecord: {
         date: '',
         check_in: '',
@@ -110,11 +116,14 @@ export default {
   methods: {
     async loadAttendanceRecords() {
       try {
+        this.loading = true
         const response = await api.get('attendance/')
         this.attendanceRecords = response.data
       } catch (error) {
         console.error('加载考勤记录失败:', error)
         alert('加载考勤记录失败: ' + error.message)
+      } finally {
+        this.loading = false
       }
     },
     async checkIn() {
