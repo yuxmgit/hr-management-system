@@ -5,7 +5,7 @@ export default {
     try {
       const response = await api.post('login/', { username, password })
       if (response.data.success) {
-        localStorage.setItem('user', JSON.stringify(response.data.user))
+        localStorage.setItem('adminUser', JSON.stringify(response.data.user))
       }
       return response.data
     } catch (error) {
@@ -17,7 +17,7 @@ export default {
     // Ensure this returns a promise
     return new Promise((resolve) => {
       localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem('adminUser');
       // Any other cleanup
       resolve();
     });
@@ -32,7 +32,7 @@ export default {
   },
 
   getUser() {
-    const user = localStorage.getItem('user')
+    const user = localStorage.getItem('adminUser')
     return user ? JSON.parse(user) : null
   },
 

@@ -12,6 +12,7 @@ from .serializers import EmployeeSerializer, LeaveRequestSerializer, AttendanceS
 from django.middleware.csrf import get_token
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout
+from datetime import datetime as dt
 
 class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Employee.objects.all()
@@ -106,26 +107,23 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         print(f"Received data: {serializer.validated_data}")  # Debug log
+        
+        # Print serializer errors if not valid
+        if not serializer.is_valid():
+            print(f"Serializer errors: {serializer.errors}")
+            raise serializers.ValidationError(serializer.errors)
+        
         try:
             employee = Employee.objects.get(user=user)
+            # Simply save with the employee, don't return a Response
             instance = serializer.save(employee=employee)
-            print(f"Attendance record saved: {instance.id}")  # Debug log
-            return Response({
-                'success': True,
-                'data': serializer.data
-            }, status=status.HTTP_201_CREATED)
+            print(f"Attendance record saved: {instance.id}")  # Fixed debug log
         except Employee.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Employee profile not found'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            # Raise a validation error instead of returning Response
+            raise serializers.ValidationError('Employee profile not found')
         except Exception as e:
             print(f"Error saving attendance: {e}")  # Debug log
-            return Response({
-                'success': False,
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+            raise serializers.ValidationError(str(e))
 # In your views.py file (likely in employees app)
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
@@ -334,7 +332,7 @@ class AdminEmployeeDetailView(APIView):
         serializer = EmployeeSerializer(employee, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({'success': True, 'data': serializer.data})
         return Response(serializer.errors, status=400)
     
     def delete(self, request, pk):
@@ -431,10 +429,9 @@ class AdminLeaveRequestListView(APIView):
         leave_requests = LeaveRequest.objects.all()
         serializer = LeaveRequestSerializer(leave_requests, many=True)
         return Response(serializer.data)
-
 class AdminLeaveRequestDetailView(APIView):
     """
-    管理员审批请假请求
+    管理员查看和审批请假请求
     """
     permission_classes = [IsAuthenticated]
     
@@ -444,7 +441,8 @@ class AdminLeaveRequestDetailView(APIView):
         except LeaveRequest.DoesNotExist:
             return None
     
-    def put(self, request, pk):
+    # 修改后的POST方法来处理审批
+    def post(self, request, pk):
         if not request.user.is_staff:
             return Response({'error': 'Permission denied'}, status=403)
             
@@ -452,15 +450,142 @@ class AdminLeaveRequestDetailView(APIView):
         if not leave_request:
             return Response({'error': 'Leave request not found'}, status=404)
             
+        # 根据URL路径判断操作类型
+        url_name = request.resolver_match.url_name
+        
         # 只能审批状态为pending的请假请求
         if leave_request.status != 'pending':
             return Response({'error': 'Leave request already processed'}, status=400)
             
-        serializer = LeaveRequestSerializer(leave_request, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+        if 'approve' in url_name:
+            leave_request.status = 'approved'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        elif 'reject' in url_name:
+            leave_request.status = 'rejected'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        else:
+            return Response({'error': 'Invalid operation'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request)
+        return Response(serializer.data)
+    """
+    管理员查看和审批请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return LeaveRequest.objects.get(pk=pk)
+        except LeaveRequest.DoesNotExist:
+            return None
+    
+    # 修正后的POST方法来处理审批
+    def post(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        leave_request = self.get_object(pk)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 处理审批操作
+        action = request.data.get('action')
+        if action == 'approve':
+            # 只能审批状态为pending的请假请求
+            if leave_request.status != 'pending':
+                return Response({'error': 'Leave request already processed'}, status=400)
+                
+            leave_request.status = 'approved'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        elif action == 'reject':
+            # 只能审批状态为pending的请假请求
+            if leave_request.status != 'pending':
+                return Response({'error': 'Leave request already processed'}, status=400)
+                
+            leave_request.status = 'rejected'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        else:
+            return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request)
+        return Response(serializer.data)
+    """
+    管理员查看和审批请假请求
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return LeaveRequest.objects.get(pk=pk)
+        except LeaveRequest.DoesNotExist:
+            return None
+    
+    # 添加POST方法来处理审批
+    def post(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        leave_request = self.get_object(pk)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 处理审批操作
+        action = request.data.get('action')
+        if action == 'approve':
+            # 只能审批状态为pending的请假请求
+            if leave_request.status != 'pending':
+                return Response({'error': 'Leave request already processed'}, status=400)
+                
+            leave_request.status = 'approved'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        elif action == 'reject':
+            # 只能审批状态为pending的请假请求
+            if leave_request.status != 'pending':
+                return Response({'error': 'Leave request already processed'}, status=400)
+                
+            leave_request.status = 'rejected'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        else:
+            return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request)
+        return Response(serializer.data)
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=403)
+            
+        leave_request = self.get_object(pk)
+        if not leave_request:
+            return Response({'error': 'Leave request not found'}, status=404)
+            
+        # 处理审批操作
+        action = request.data.get('action')
+        if action == 'approve':
+            leave_request.status = 'approved'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        elif action == 'reject':
+            leave_request.status = 'rejected'
+            leave_request.reviewed_by = request.user
+            leave_request.review_date = timezone.now()
+            leave_request.save()
+        else:
+            return Response({'error': 'Invalid action'}, status=400)
+            
+        serializer = LeaveRequestSerializer(leave_request)
+        return Response(serializer.data)
 class UserAttendanceListView(APIView):
     """
     用户查看和创建自己的考勤记录
@@ -480,7 +605,7 @@ class UserAttendanceListView(APIView):
         
         if date_param:
             try:
-                date_obj = datetime.strptime(date_param, '%Y-%m-%d').date()
+                date_obj = dt.strptime(date_param, '%Y-%m-%d').date()
                 attendance_records = attendance_records.filter(date=date_obj)
             except ValueError:
                 return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
@@ -557,7 +682,7 @@ class AdminAttendanceListView(APIView):
         
         if date_param:
             try:
-                date_obj = datetime.strptime(date_param, '%Y-%m-%d').date()
+                date_obj = dt.strptime(date_param, '%Y-%m-%d').date()
                 attendance_records = attendance_records.filter(date=date_obj)
             except ValueError:
                 return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)

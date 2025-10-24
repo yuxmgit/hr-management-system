@@ -1,7 +1,20 @@
 import axios from 'axios'
+// 根据环境自动选择 baseURL
+const getBaseURL = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // 生产环境使用相对路径，由 Nginx 处理
+    return '/api/admin/'
+  } else {
+    // 开发环境使用完整路径
+    return 'http://localhost:8000/api/admin/'  // Removed trailing comma
+  }
+}
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/admin/',
+  baseURL: getBaseURL(),
+  headers: {
+    'Content-Type': 'application/json'
+  },
   withCredentials: true,  // 重要：允许发送cookies
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',

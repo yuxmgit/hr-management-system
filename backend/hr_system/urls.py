@@ -33,12 +33,17 @@ urlpatterns = [
     # 员工管理接口 (管理员)
     path('api/admin/employees/', AdminEmployeeListView.as_view(), name='admin-employee-list'),
     path('api/admin/employees/<int:pk>/', AdminEmployeeDetailView.as_view(), name='admin-employee-detail'),
+    # 在urls.py的urlpatterns中添加
+    path('api/admin/register/', register_view, name='admin-register'),
     
     # 请假请求接口
     path('api/leave-requests/', UserLeaveRequestListView.as_view(), name='user-leave-request-list'),
     path('api/leave-requests/<int:pk>/', UserLeaveRequestDetailView.as_view(), name='user-leave-request-detail'),
     path('api/admin/leave-requests/', AdminLeaveRequestListView.as_view(), name='admin-leave-request-list'),
     path('api/admin/leave-requests/<int:pk>/', AdminLeaveRequestDetailView.as_view(), name='admin-leave-request-detail'),
+    # 请假审批URL
+    path('api/admin/leave-requests/<int:pk>/approve/', AdminLeaveRequestDetailView.as_view(), name='admin-leave-request-approve'),
+    path('api/admin/leave-requests/<int:pk>/reject/', AdminLeaveRequestDetailView.as_view(), name='admin-leave-request-reject'),
     
     # 考勤接口
     path('api/attendance/', UserAttendanceListView.as_view(), name='user-attendance-list'),

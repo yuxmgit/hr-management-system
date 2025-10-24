@@ -129,12 +129,15 @@ export default {
         if (response.data.success) {
           // Store user data in localStorage
           localStorage.setItem('adminUser', JSON.stringify(response.data.user));
-          
-          // Redirect to admin dashboard
-          this.$router.push('/dashboard');
-        } else {
-          this.error = response.data.message || '登录失败';
-        }
+           // Debugging logs
+      console.log('Login successful, redirecting to dashboard');
+      console.log('Current routes:', this.$router.options.routes);
+      this.$router.push('/dashboard').catch(err => {
+        console.error('Navigation error:', err);
+      });
+    } else {
+      this.error = response.data.message || '登录失败';
+    }
       } catch (err) {
         if (err.response && err.response.data && err.response.data.message) {
           this.error = err.response.data.message;
