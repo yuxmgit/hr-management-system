@@ -3,7 +3,8 @@
     <h1 class="h2 mb-4">仪表板</h1>
     
     <div class="row">
-      <div class="col-xl-4 col-md-6 mb-4">
+      <!-- Improved responsive classes with better mobile handling -->
+      <div class="col-12 col-md-6 col-xl-4 mb-4">
         <div class="card border-left-primary shadow h-100 py-2">
           <div class="card-body">
             <div class="row no-gutters align-items-center">
@@ -21,7 +22,7 @@
         </div>
       </div>
       
-      <div class="col-xl-4 col-md-6 mb-4">
+      <div class="col-12 col-md-6 col-xl-4 mb-4">
         <div class="card border-left-success shadow h-100 py-2">
           <div class="card-body">
             <div class="row no-gutters align-items-center">
@@ -39,7 +40,7 @@
         </div>
       </div>
       
-      <div class="col-xl-4 col-md-6 mb-4">
+      <div class="col-12 col-md-6 col-xl-4 mb-4">
         <div class="card border-left-info shadow h-100 py-2">
           <div class="card-body">
             <div class="row no-gutters align-items-center">
@@ -59,12 +60,16 @@
     </div>
     
     <div class="row">
-      <div class="col-md-12">
+      <div class="col-12">
         <div class="card shadow mb-4">
           <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h5 class="m-0 font-weight-bold text-primary">最近请假申请</h5>
+            <button class="btn btn-sm btn-primary d-md-none" @click="viewAllRequests">
+              查看全部
+            </button>
           </div>
           <div class="card-body">
+            <!-- Mobile optimized table -->
             <div class="table-responsive">
               <table class="table table-bordered table-hover">
                 <thead class="thead-light">
@@ -72,23 +77,35 @@
                     <th>类型</th>
                     <th>日期</th>
                     <th>状态</th>
-                    <th>申请日期</th>
+                    <th class="d-none d-md-table-cell">申请日期</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="request in recentRequests" :key="request.id">
-                    <td>{{ request.leave_type }}</td>
-                    <td>{{ formatDate(request.start_date) }} 至 {{ formatDate(request.end_date) }}</td>
+                    <td>{{ formatLeaveType(request.leave_type) }}</td>
+                    <td>
+                      <span class="d-md-none d-inline-block mr-1">日期:</span>
+                      {{ formatDate(request.start_date) }}<br class="d-md-none">
+                      <span class="d-md-none">至</span>
+                      {{ formatDate(request.end_date) }}
+                    </td>
                     <td>
                       <span :class="getStatusClass(request.status)">{{ getStatusText(request.status) }}</span>
                     </td>
-                    <td>{{ formatDate(request.applied_date) }}</td>
+                    <td class="d-none d-md-table-cell">{{ formatDate(request.applied_date) }}</td>
                   </tr>
                   <tr v-if="recentRequests.length === 0">
                     <td colspan="4" class="text-center">暂无请假申请记录</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+            
+            <!-- Mobile action button -->
+            <div class="d-md-none mt-3">
+              <button class="btn btn-primary w-100" @click="viewAllRequests">
+                查看所有请假申请
+              </button>
             </div>
           </div>
         </div>
@@ -134,6 +151,15 @@ export default {
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString('zh-CN')
     },
+    formatLeaveType(type) {
+      const types = {
+        annual: '年假',
+        sick: '病假',
+        personal: '事假',
+        maternity: '产假'
+      }
+      return types[type] || type
+    },
     getStatusClass(status) {
       const classes = {
         pending: 'badge bg-warning text-dark',
@@ -149,6 +175,9 @@ export default {
         rejected: '已拒绝'
       }
       return texts[status] || status
+    },
+    viewAllRequests() {
+      this.$router.push('/leave-requests')
     }
   }
 }
@@ -157,6 +186,55 @@ export default {
 <style scoped>
 .dashboard-container {
   padding: 20px;
+}
+
+/* Improve mobile responsiveness */
+@media (max-width: 576px) {
+  .dashboard-container {
+    padding: 10px;
+  }
+  
+  .card {
+    margin-bottom: 1rem;
+  }
+  
+  h1.h2 {
+    font-size: 1.5rem;
+  }
+  
+  .h5 {
+    font-size: 1.1rem;
+  }
+  
+  /* Make cards more compact on mobile */
+  .py-2 {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+  
+  .card-body {
+    padding: 0.75rem;
+  }
+  
+  .text-xs {
+    font-size: 0.65rem;
+  }
+  
+  /* Adjust icon size for better visibility */
+  .fa-2x {
+    font-size: 1.5em;
+  }
+  
+  /* Improve table readability on mobile */
+  .table th, .table td {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Better spacing for mobile table */
+  .table-responsive {
+    font-size: 0.9rem;
+  }
 }
 
 .card {
@@ -217,5 +295,11 @@ export default {
 
 .text-gray-300 {
   color: #dddfeb !important;
+}
+
+/* Button styles for mobile */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
 }
 </style>

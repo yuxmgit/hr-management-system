@@ -1,0 +1,57 @@
+/* Mobile First Responsive Styles */
+/* Base styles for mobile */
+.container-fluid {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  
+  /* Typography adjustments for mobile */
+  h1.h2 {
+    font-size: 1.5rem;
+  }
+  
+  .h5 {
+    font-size: 1.1rem;
+  }
+  
+  /* Card adjustments for mobile */
+  .card {
+    margin-bottom: 1rem;
+  }
+  
+  /* Table improvements for mobile */
+  .table-responsive {
+    overflow-x: auto;
+  }
+  
+  /* Medium devices (tablets, 768px and up) */
+  @media (min-width: 768px) {
+    .container-fluid {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    
+    h1.h2 {
+      font-size: 2rem;
+    }
+    
+    .h5 {
+      font-size: 1.25rem;
+    }
+  }
+  
+  /* Large devices (desktops, 992px and up) */
+  @media (min-width: 992px) {
+    .container-fluid {
+      padding-left: 30px;
+      padding-right: 30px;
+    }
+  }
+  
+  /* Extra large devices (large desktops, 1200px and up) */
+  @media (min-width: 1200px) {
+    .container-fluid {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+  }

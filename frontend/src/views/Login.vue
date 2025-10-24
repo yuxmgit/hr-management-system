@@ -5,7 +5,7 @@
         <div class="logo-icon">
           <i class="fas fa-users"></i>
         </div>
-        <h2 class="app-title">人力资源管理系统</h2>
+        <h2 class="app-title">人力资源登记系统</h2>
         <p class="app-subtitle">Employee Management Solution</p>
       </div>
       
@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import auth from '../services/auth'
+import api from '../services/api'
 
 export default {
   name: 'Login',
@@ -83,14 +83,32 @@ export default {
       this.error = ''
       
       try {
-        const result = await auth.login(this.username, this.password)
-        if (result.success) {
+        // Direct API call instead of using auth service
+        const response = await api.post('login/', {
+          username: this.username,
+          password: this.password
+        })
+        
+        if (response.data.success) {
+          // Store user data
+          const userData = {
+            username: this.username,
+            loggedIn: true,
+            timestamp: new Date().getTime()
+          };
+          
+          localStorage.setItem('user', JSON.stringify(userData));
           this.$router.push('/dashboard')
         } else {
-          this.error = result.message
+          this.error = response.data.message || '登录失败'
         }
       } catch (error) {
-        this.error = error.message || '登录失败'
+        console.error('Login error:', error);
+        if (error.response && error.response.status === 401) {
+          this.error = '用户名或密码错误'
+        } else {
+          this.error = '登录失败，请稍后重试'
+        }
       } finally {
         this.loading = false
       }

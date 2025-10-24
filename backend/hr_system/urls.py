@@ -3,13 +3,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from employees.views import (
     EmployeeViewSet, LeaveRequestViewSet, AttendanceViewSet,
-    login_view, logout_view, current_user, register_view,csrf_token_view
+    logout_view, current_user, register_view, csrf_token_view,
+    admin_login_view, LoginView
 )
-from employees.views import admin_login_view
-# 添加CSRF token视图
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import JsonResponse
-from django.middleware.csrf import get_token
 from employees.views import (
     AdminEmployeeListView, AdminEmployeeDetailView,
     UserLeaveRequestListView, UserLeaveRequestDetailView,
@@ -17,7 +13,6 @@ from employees.views import (
     UserAttendanceListView, UserAttendanceDetailView,
     AdminAttendanceListView, AdminAttendanceDetailView
 )
-
 
 router = DefaultRouter()
 router.register(r'employees', EmployeeViewSet)
@@ -27,14 +22,14 @@ router.register(r'attendance', AttendanceViewSet)
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('api/login/', login_view),
+    path('api/login/', LoginView.as_view(), name='login'),
     
     path('api/logout/', logout_view),
     path('api/register/', register_view),
     path('api/current-user/', current_user),
-    # In your urls.py
     path('api/admin/login/', admin_login_view, name='admin_login'),
     path('api/admin/csrf-token/', csrf_token_view, name='csrf_token'),
+    
     # 员工管理接口 (管理员)
     path('api/admin/employees/', AdminEmployeeListView.as_view(), name='admin-employee-list'),
     path('api/admin/employees/<int:pk>/', AdminEmployeeDetailView.as_view(), name='admin-employee-detail'),

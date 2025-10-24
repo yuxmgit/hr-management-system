@@ -1,5 +1,7 @@
+# At the top of your views.py file, update your imports:
+import datetime
 from rest_framework import viewsets, status, serializers
-from rest_framework.decorators import action
+from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
@@ -9,6 +11,7 @@ from .models import Employee, LeaveRequest, Attendance
 from .serializers import EmployeeSerializer, LeaveRequestSerializer, AttendanceSerializer
 from django.middleware.csrf import get_token
 from django.http import JsonResponse
+from django.contrib.auth import authenticate, login, logout
 
 class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Employee.objects.all()
@@ -123,36 +126,26 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
-# Authentication views
-from django.contrib.auth import authenticate, login, logout
-from rest_framework.decorators import api_view, permission_classes
+# In your views.py file (likely in employees app)
 from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.contrib.auth import authenticate, login
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_view(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
+class LoginView(APIView):
+    permission_classes = [AllowAny]  # This is critical
     
-    user = authenticate(username=username, password=password)
-    if user is not None:
-        login(request, user)
-        return Response({
-            'success': True,
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'is_staff': user.is_staff
-            }
-        })
-    else:
-        return Response({
-            'success': False,
-            'message': 'Invalid credentials'
-        }, status=status.HTTP_401_UNAUTHORIZED)
-
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return Response({'success': True, 'message': 'Login successful'})
+        else:
+            return Response({'success': False, 'message': 'Invalid credentials'}, status=401)
+        
 @api_view(['POST'])
 def logout_view(request):
     logout(request)

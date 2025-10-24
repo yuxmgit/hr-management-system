@@ -3,24 +3,20 @@ import api from './api'
 export default {
   async login(username, password) {
     try {
-      const response = await api.post('login/', { username, password })
-      if (response.data.success) {
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-      }
+      const response = await api.post('login/', {
+        username: username,
+        password: password
+      })
       return response.data
     } catch (error) {
-      throw error.response?.data || { message: '登录失败' }
+      // Re-throw the error so it can be handled in the component
+      throw error
     }
   },
-
+  
   logout() {
-    // Ensure this returns a promise
-    return new Promise((resolve) => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Any other cleanup
-      resolve();
-    });
+    // Handle logout
+    return api.post('logout/')
   },
   async getCurrentUser() {
     try {
