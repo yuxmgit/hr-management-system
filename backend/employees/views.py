@@ -490,7 +490,7 @@ class AdminLeaveRequestDetailView(APIView):
             
         leave_request = self.get_object(pk)
         if not leave_request:
-            return Response({'error': 'Leave request not found'}, status=404)
+            return Response({'error': 'Leave request not found'}, status=404) 
             
         # 处理审批操作
         action = request.data.get('action')
